@@ -7,9 +7,15 @@
 
 import UIKit
 
+protocol AuthenticationControllerProtocol {
+    func checkFormStatus()
+}
+
 class LoginController: UIViewController {
     
     // MARK: - Properties
+    
+    private var viewModel = LoginViewModel()
     
     private let iconImage: UIImageView = {
         let iv = UIImageView()
@@ -18,74 +24,71 @@ class LoginController: UIViewController {
         return iv
     }()
     
-    private lazy var emailConteinerView: UIView = {
-        let conteinerView = UIView()
-        conteinerView.backgroundColor = .clear
+    private lazy var emailConteinerView: InputContainerView = {
         
-        let iv = UIImageView()
-        iv.image = UIImage(systemName: "envelope")
-        iv.tintColor = .white
-        
-        conteinerView.addSubview(iv)
-        iv.centerY(inView: conteinerView)
-        iv.anchor(left: conteinerView.leftAnchor, paddingLeft: 8)
-        iv.setDimensions(height: 24, width: 28)
-        
-        conteinerView.addSubview(emailTextField)
-        emailTextField.centerY(inView: conteinerView)
-        emailTextField.anchor(left: iv.rightAnchor, bottom: conteinerView.bottomAnchor, right: conteinerView.rightAnchor, paddingLeft: 8, paddingBottom: -8)
-        
-        conteinerView.setHeight(height: 50)
-        return conteinerView
+        return InputContainerView(image: #imageLiteral(resourceName: "ic_mail_outline_white_2x"),
+                                  textField: emailTextField)//#imageLiteral(
         
     }()
     
-    private lazy var  passwordConteinerView: UIView = {
-        let conteinerView = UIView()
-        conteinerView.backgroundColor = .clear
-        
-        let iv = UIImageView()
-        iv.image = UIImage(systemName: "lock")
-        iv.tintColor = .white
-        
-        conteinerView.addSubview(iv)
-        iv.centerY(inView: conteinerView)
-        iv.anchor(left: conteinerView.leftAnchor, paddingLeft: 8)
-        iv.setDimensions(height: 28, width: 28)
-        
-        conteinerView.addSubview(passwordTextField)
-        passwordTextField.centerY(inView: conteinerView)
-        passwordTextField.anchor(left: iv.rightAnchor, bottom: conteinerView.bottomAnchor, right: conteinerView.rightAnchor, paddingLeft: 8, paddingBottom: -8)
-        
-        conteinerView.setHeight(height: 50)
-        return conteinerView
-        
+    private lazy var  passwordConteinerView: InputContainerView = {
+        return InputContainerView(image: #imageLiteral(resourceName: "ic_lock_outline_white_2x"),
+                                  textField: passwordTextField)
     }()
     
     private let loginButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Log in", for: .normal)
         button.layer.cornerRadius = 5
-        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
+        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
         button.backgroundColor = .systemRed
+        button.backgroundColor = #colorLiteral(red: 0.9098039269, green: 0.4784313738, blue: 0.6431372762, alpha: 1)
+        button.setTitleColor(.white, for: .normal)
         button.setHeight(height: 50)
+        button.isEnabled = false
+        button.addTarget(self, action: #selector(handleLogin), for: .touchUpInside)
         return button
     }()
     
-    private let emailTextField: UITextField = {
-        let tf = UITextField()
-        tf.placeholder = "Email"
-        tf.textColor = .white
+    private let emailTextField = CustomTextField(placeholder: "Email")
+    
+    private let passwordTextField: CustomTextField = {
+        let tf = CustomTextField(placeholder: "password")
+        tf.isSecureTextEntry = true
         return tf
     }()
     
-    private let passwordTextField: UITextField = {
-        let tf = UITextField()
-        tf.placeholder = "Password"
-        tf.isSecureTextEntry = true
-        tf.textColor = .white
-        return tf
+    private let dontHaveAcountButton: UIButton = {
+        let button = UIButton(type: .system)
+        let attributedTitle = NSMutableAttributedString(string: "Dont't have an account?  ",
+                                                        attributes: [.font: UIFont.systemFont(ofSize: 16), .foregroundColor: UIColor.white])
+        attributedTitle.append(NSAttributedString(string: "Sign Up",
+                                                  attributes: [.font: UIFont.boldSystemFont(ofSize: 16), .foregroundColor: UIColor.white]))
+        button.setAttributedTitle(attributedTitle, for: .normal)
+        button.addTarget(self, action: #selector(handleShowSignUp), for: .touchUpInside)
+        return button
+        
     }()
+    
+    // MARK: - Selectors
+    
+    @objc func handleLogin() {
+        print("DEBUG: Handle Login here...")
+    }
+    
+    @objc func handleShowSignUp() {
+        let controller = RegistrarionController()
+        navigationController?.pushViewController(controller, animated: true)
+    }
+    
+    @objc func textDidChange(sender: UITextField) {
+        if sender == emailTextField {
+            viewModel.email = sender.text
+        } else {
+            viewModel.password = sender .text
+        }
+        checkFormStatus()
+    }
     
     // MARK: - Lifecycle
     
@@ -116,13 +119,26 @@ class LoginController: UIViewController {
         
         view.addSubview(stack)
         stack.anchor(top: iconImage.bottomAnchor, left: view.leftAnchor, right: view.rightAnchor, paddingTop: 32, paddingLeft: 32, paddingRight: 32)
+        
+        view.addSubview(dontHaveAcountButton)
+        dontHaveAcountButton.anchor(left: view.leftAnchor,
+                                    bottom: view.safeAreaLayoutGuide.bottomAnchor,
+                                    right: view.rightAnchor, paddingLeft: 32, paddingRight: 32)
+        
+        emailTextField.addTarget(self, action: #selector(textDidChange), for: .editingChanged)
+        passwordTextField.addTarget(self, action: #selector(textDidChange), for: .editingChanged)
+
     }
-    
-    func configureGradientLayer() {
-        let gradient = CAGradientLayer()
-        gradient.colors = [UIColor.systemPurple.cgColor, UIColor.systemPink.cgColor]
-        gradient.locations = [0, 1]
-        view.layer.addSublayer(gradient)
-        gradient.frame = view.frame
+}
+
+extension LoginController: AuthenticationControllerProtocol {
+    func checkFormStatus() {
+        if viewModel.formIsValid {
+            loginButton.isEnabled = true
+            loginButton.backgroundColor = #colorLiteral(red: 0.8078431487, green: 0.02745098062, blue: 0.3333333433, alpha: 1)
+        } else {
+            loginButton.isEnabled = false
+            loginButton.backgroundColor = #colorLiteral(red: 0.9098039269, green: 0.4784313738, blue: 0.6431372762, alpha: 1)
+        }
     }
 }
